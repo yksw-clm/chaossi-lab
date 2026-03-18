@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+
 	let { data } = $props();
 </script>
 
@@ -16,7 +18,9 @@
 				<li class="rounded-md border border-slate-200 bg-white p-4">
 					<p class="text-xs text-slate-500">{post.date}</p>
 					<h3 class="text-lg font-semibold">
-						<a class="hover:underline" href={`/blog/${post.slug}`}>{post.title}</a>
+						<a class="hover:underline" href={resolve('/blog/[slug]', { slug: post.slug })}
+							>{post.title}</a
+						>
 					</h3>
 					<p class="mt-1 text-sm text-slate-700">{post.excerpt}</p>
 				</li>

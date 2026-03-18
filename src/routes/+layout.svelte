@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 
@@ -12,7 +13,7 @@
 		{ label: 'React', href: '/blog?category=react' },
 		{ label: 'C#', href: '/blog?category=csharp' },
 		{ label: 'Blog', href: '/blog?category=blog' }
-	];
+	] as const;
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -23,7 +24,7 @@
 		<ul class="flex">
 			{#each categories as category, index (index)}
 				<li class="border-l px-2 first:border-l-0 first:pl-0">
-					<a class="hover:underline" href={category.href}>{category.label}</a>
+					<a class="hover:underline" href={resolve(category.href)}>{category.label}</a>
 				</li>
 			{/each}
 		</ul>
