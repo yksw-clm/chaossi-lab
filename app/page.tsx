@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, Dices, MessagesSquare } from "lucide-react";
 
 const tools = [
   {
@@ -8,6 +8,13 @@ const tools = [
     description: "言葉をつないで遊ぶゲームツール",
     icon: MessagesSquare,
     iconClassName: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  },
+  {
+    href: "/lottery",
+    title: "抽選ツール",
+    description: "候補をランダムに抽出・並び替え",
+    icon: Dices,
+    iconClassName: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   },
 ];
 

@@ -36,6 +36,7 @@ export default function WordGamesPage() {
   const [copyMessage, setCopyMessage] = useState("");
   const answerInput = useRef<HTMLInputElement>(null);
   const objectionDialog = useRef<HTMLDialogElement>(null);
+  const moveList = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -77,6 +78,10 @@ export default function WordGamesPage() {
       objectionDialog.current.showModal();
     }
   }, [objection]);
+
+  useEffect(() => {
+    if (moveList.current) moveList.current.scrollTop = 0;
+  }, [game?.moves.length]);
 
   function startGame(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -288,9 +293,9 @@ export default function WordGamesPage() {
 
             <section className={card}>
               <h2 className="flex items-center gap-2 text-lg font-semibold"><ListOrdered aria-hidden="true" className="size-5" />着手リスト</h2>
-              {game.moves.length === 0 ? <p className="mt-4 text-sm text-neutral-500">まだ回答はありません。</p> : <ol className="mt-4 max-h-96 space-y-2 overflow-y-auto">
-                {game.moves.map((move, index) => <li key={index} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2.5 text-sm dark:bg-neutral-800">
-                  <span><span className="mr-2 font-mono text-neutral-500">{index + 1}:</span><span className={move.type === "answer" ? "font-medium" : "font-medium text-red-600 dark:text-red-400"}>{move.type === "answer" ? move.answer : move.type === "timeout" ? "時間切れ・脱落" : "投了・脱落"}</span></span>
+              {game.moves.length === 0 ? <p className="mt-4 text-sm text-neutral-500">まだ回答はありません。</p> : <ol ref={moveList} className="mt-4 max-h-96 space-y-2 overflow-y-auto">
+                {[...game.moves].reverse().map((move, reverseIndex) => <li key={game.moves.length - reverseIndex} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2.5 text-sm dark:bg-neutral-800">
+                  <span><span className="mr-2 font-mono text-neutral-500">{game.moves.length - reverseIndex}:</span><span className={move.type === "answer" ? "font-medium" : "font-medium text-red-600 dark:text-red-400"}>{move.type === "answer" ? move.answer : move.type === "timeout" ? "時間切れ・脱落" : "投了・脱落"}</span></span>
                   <span className="text-xs text-neutral-500">{game.players[move.playerId]?.name}</span>
                 </li>)}
               </ol>}
