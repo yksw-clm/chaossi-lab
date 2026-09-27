@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Dices, ListOrdered, Shuffle } from "lucide-react";
+import { Dices, ListOrdered, Shuffle, Trash2 } from "lucide-react";
 import { drawCandidates, parseCandidates } from "./lottery";
+
+const CANDIDATES_STORAGE_KEY = "chaossi-lab:lottery:candidates";
 
 export default function LotteryPage() {
   const [input, setInput] = useState("");
@@ -13,6 +15,33 @@ export default function LotteryPage() {
   const candidates = useMemo(() => parseCandidates(input), [input]);
   const count = Number(countInput);
   const isReorder = candidates.length > 0 && count === candidates.length;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setInput(window.localStorage.getItem(CANDIDATES_STORAGE_KEY) ?? "");
+      } catch {
+        // The list remains usable when browser storage is unavailable.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  function updateCandidates(value: string) {
+    setInput(value);
+    setResult(null);
+    setError("");
+    try {
+      if (value) window.localStorage.setItem(CANDIDATES_STORAGE_KEY, value);
+      else window.localStorage.removeItem(CANDIDATES_STORAGE_KEY);
+    } catch {
+      // The list remains usable when browser storage is unavailable.
+    }
+  }
+
+  function clearCandidates() {
+    updateCandidates("");
+  }
 
   function runLottery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,13 +76,16 @@ export default function LotteryPage() {
               id="candidates"
               rows={9}
               value={input}
-              onChange={(event) => { setInput(event.target.value); setResult(null); setError(""); }}
+              onChange={(event) => updateCandidates(event.target.value)}
               placeholder={"A\nB\nC\nD\nE\nF"}
               aria-invalid={error.startsWith("候補")}
               aria-describedby={error.startsWith("候補") ? "candidates-help lottery-error" : "candidates-help"}
               className="mt-3 w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-neutral-700"
             />
-            <p className="mt-1 text-sm text-neutral-500">候補数：{candidates.length}件</p>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <p className="text-sm text-neutral-500">候補数：{candidates.length}件 · ブラウザに自動保存</p>
+              <button type="button" onClick={clearCandidates} disabled={!input} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-red-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"><Trash2 aria-hidden="true" className="size-4" />全削除</button>
+            </div>
           </div>
 
           <div>
