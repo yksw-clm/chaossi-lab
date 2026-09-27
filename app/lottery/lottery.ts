@@ -1,6 +1,6 @@
 export function parseCandidates(input: string): string[] {
   return input
-    .split(/[\n,、，]/)
+    .split(/\r?\n/)
     .map((candidate) => candidate.trim())
     .filter(Boolean);
 }

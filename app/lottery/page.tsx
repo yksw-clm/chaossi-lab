@@ -42,13 +42,13 @@ export default function LotteryPage() {
         <form onSubmit={runLottery} noValidate className="space-y-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 dark:border-neutral-800 dark:bg-neutral-900">
           <div>
             <label htmlFor="candidates" className="block text-lg font-semibold">候補リスト</label>
-            <p id="candidates-help" className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">改行またはカンマで区切って入力してください。同じ内容も別の候補として数えます。</p>
+            <p id="candidates-help" className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">1行に1件ずつ入力してください。同じ内容も別の候補として数えます。</p>
             <textarea
               id="candidates"
               rows={9}
               value={input}
               onChange={(event) => { setInput(event.target.value); setResult(null); setError(""); }}
-              placeholder="A, B, C, D, E, F"
+              placeholder={"A\nB\nC\nD\nE\nF"}
               aria-invalid={error.startsWith("候補")}
               aria-describedby={error.startsWith("候補") ? "candidates-help lottery-error" : "candidates-help"}
               className="mt-3 w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-neutral-700"

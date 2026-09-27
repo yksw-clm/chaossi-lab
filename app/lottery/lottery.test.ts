@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { drawCandidates, parseCandidates } from "./lottery";
 
 describe("candidate input", () => {
-  test("accepts commas and line breaks and ignores empty entries", () => {
-    expect(parseCandidates(" A, B\nC、 D，E\n\n F ")).toEqual(["A", "B", "C", "D", "E", "F"]);
+  test("splits only on line breaks and keeps commas inside entries", () => {
+    expect(parseCandidates(" A,B\nC、D\nE，F\n\n G \r\n")).toEqual(["A,B", "C、D", "E，F", "G"]);
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Clock3, Copy, Flag, ListOrdered, MessageCircleWarning, Pause, Play, RotateCcw, Trophy, Users } from "lucide-react";
+import { Clock3, Copy, Flag, History, ListOrdered, MessageCircleWarning, Pause, Play, RotateCcw, Trophy, Users } from "lucide-react";
 import {
   STORAGE_KEY, acceptAnswer, createGame, expireTurn, getAnswerWarnings,
   getRemainingMs, invalidateLastAnswer, pauseGame, resignCurrentPlayer,
@@ -10,6 +10,7 @@ import {
   undoLast, validateSettings,
   type GameMode, type GameState, type SettingsErrors, type TurnOrder,
 } from "./game";
+import { TOPIC_HISTORY_KEY, parseTopicHistory, rememberTopic } from "./topic-history";
 
 type PendingAnswer = { answer: string; warnings: string[] };
 type Objection = { answer: string; playerName: string; resumeOnClose: boolean };
@@ -25,6 +26,8 @@ export default function WordGamesPage() {
   const [now, setNow] = useState(0);
   const [mode, setMode] = useState<GameMode>("shiritori");
   const [topic, setTopic] = useState("");
+  const [topicHistory, setTopicHistory] = useState<string[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [turnSeconds, setTurnSeconds] = useState("30");
   const [names, setNames] = useState("");
   const [turnOrder, setTurnOrder] = useState<TurnOrder>("as-entered");
@@ -35,12 +38,20 @@ export default function WordGamesPage() {
   const [objection, setObjection] = useState<Objection | null>(null);
   const [copyMessage, setCopyMessage] = useState("");
   const answerInput = useRef<HTMLInputElement>(null);
+  const topicInput = useRef<HTMLInputElement>(null);
   const objectionDialog = useRef<HTMLDialogElement>(null);
+  const historyDialog = useRef<HTMLDialogElement>(null);
   const moveList = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setGame(restoreGame(window.localStorage.getItem(STORAGE_KEY)));
+      try {
+        setGame(restoreGame(window.localStorage.getItem(STORAGE_KEY)));
+        setTopicHistory(parseTopicHistory(window.localStorage.getItem(TOPIC_HISTORY_KEY)));
+      } catch {
+        setGame(null);
+        setTopicHistory([]);
+      }
       setNow(Date.now());
       setHydrated(true);
     }, 0);
@@ -50,13 +61,26 @@ export default function WordGamesPage() {
   useEffect(() => {
     if (!hydrated) return;
     const save = () => {
-      if (game) window.localStorage.setItem(STORAGE_KEY, serializeGame(game, Date.now()));
-      else window.localStorage.removeItem(STORAGE_KEY);
+      try {
+        if (game) window.localStorage.setItem(STORAGE_KEY, serializeGame(game, Date.now()));
+        else window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // The current game remains usable when browser storage is unavailable.
+      }
     };
     save();
     const interval = window.setInterval(save, 1000);
     return () => window.clearInterval(interval);
   }, [game, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(TOPIC_HISTORY_KEY, JSON.stringify(topicHistory));
+    } catch {
+      // Topic history is optional when browser storage is unavailable.
+    }
+  }, [topicHistory, hydrated]);
 
   useEffect(() => {
     if (game?.status !== "playing") return;
@@ -80,6 +104,12 @@ export default function WordGamesPage() {
   }, [objection]);
 
   useEffect(() => {
+    if (historyOpen && historyDialog.current && !historyDialog.current.open) {
+      historyDialog.current.showModal();
+    }
+  }, [historyOpen]);
+
+  useEffect(() => {
     if (moveList.current) moveList.current.scrollTop = 0;
   }, [game?.moves.length]);
 
@@ -87,12 +117,21 @@ export default function WordGamesPage() {
     event.preventDefault();
     const result = validateSettings(mode, topic, turnSeconds, names, turnOrder);
     setSettingsErrors(result.errors);
-    if (!result.settings) return;
+    const settings = result.settings;
+    if (!settings) return;
     const currentTime = Date.now();
     setNow(currentTime);
-    setGame(createGame(result.settings, currentTime));
+    setGame(createGame(settings, currentTime));
+    if (settings.topic) {
+      setTopicHistory((history) => rememberTopic(history, settings.topic));
+    }
     setDraft("");
     setPending(null);
+  }
+
+  function updateTopic(value: string) {
+    setTopic(value);
+    setSettingsErrors((errors) => ({ ...errors, topic: undefined }));
   }
 
   function commitAnswer(answer: string) {
@@ -183,7 +222,8 @@ export default function WordGamesPage() {
 
   const activePlayer = game?.players.find((player) => player.id === game.currentPlayerId);
   const remainingMs = game ? Math.min(game.turnSeconds * 1000, getRemainingMs(game, now)) : 0;
-  const isUrgent = game?.status === "playing" && remainingMs <= 10000;
+  const isLowTime = !!game && game.status !== "finished" && remainingMs < 10000;
+  const isUrgent = isLowTime && game?.status === "playing";
   const progress = game ? Math.min(100, Math.max(0, remainingMs / (game.turnSeconds * 10))) : 0;
   const lastMove = game?.moves.at(-1);
   const canObject = game?.status !== "finished" && lastMove?.type === "answer";
@@ -215,8 +255,9 @@ export default function WordGamesPage() {
           </fieldset>
           <div>
             <label htmlFor="topic" className="mb-2 block text-sm font-semibold">お題 {mode === "shiritori" && <span className="font-normal text-neutral-500">（任意）</span>}</label>
-            <input id="topic" value={topic} onChange={(event) => setTopic(event.target.value)} placeholder={mode === "shiritori" ? "例：食べ物（空欄なら自由）" : "例：山手線の駅名"} aria-invalid={!!settingsErrors.topic} aria-describedby={settingsErrors.topic ? "topic-error" : undefined} className={field} />
+            <input ref={topicInput} id="topic" value={topic} onChange={(event) => updateTopic(event.target.value)} placeholder={mode === "shiritori" ? "例：食べ物（空欄なら自由）" : "例：山手線の駅名"} aria-invalid={!!settingsErrors.topic} aria-describedby={settingsErrors.topic ? "topic-error" : undefined} className={field} />
             {settingsErrors.topic && <p id="topic-error" className="mt-1 text-sm text-red-600">{settingsErrors.topic}</p>}
+            <button type="button" onClick={() => setHistoryOpen(true)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"><History aria-hidden="true" className="size-4" />過去のお題</button>
           </div>
           <div>
             <label htmlFor="turn-seconds" className="mb-2 block text-sm font-semibold">一手の制限時間（秒）</label>
@@ -257,15 +298,15 @@ export default function WordGamesPage() {
                 </div>
                 <div className="rounded-xl bg-neutral-100 p-5 dark:bg-neutral-800">
                   <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300"><Clock3 aria-hidden="true" className="size-4" />残り時間</p>
-                  <p role="timer" aria-live="off" className={`mt-1 font-mono text-3xl font-bold tabular-nums ${isUrgent ? "text-red-600 dark:text-red-400" : ""}`}>{formatTime(remainingMs)}</p>
+                  <p role="timer" aria-live="off" className={`mt-1 font-mono text-3xl font-bold tabular-nums ${isLowTime ? "text-red-600 dark:text-red-400" : ""} ${isUrgent ? "motion-safe:animate-pulse" : ""}`}>{formatTime(remainingMs)}</p>
                   <p className="mt-1 text-xs text-neutral-500">一手 {game.turnSeconds} 秒{game.status === "paused" ? " · 一時停止中" : ""}</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"><div className={`h-full transition-[width] duration-200 ${isUrgent ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${progress}%` }} /></div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"><div className={`h-full transition-[width] duration-200 ${isLowTime ? "bg-red-500" : "bg-blue-500"} ${isUrgent ? "motion-safe:animate-pulse" : ""}`} style={{ width: `${progress}%` }} /></div>
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 {game.status !== "finished" && <button type="button" onClick={() => setGame((current) => current ? current.status === "playing" ? pauseGame(current, Date.now()) : resumeGame(current, Date.now()) : null)} className={`inline-flex items-center gap-2 ${secondaryButton}`}>{game.status === "playing" ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}{game.status === "playing" ? "一時停止" : "再開"}</button>}
                 <button type="button" disabled={!game.undo} onClick={() => { setGame((current) => current ? undoLast(current) : null); setPending(null); setDraft(""); }} className={`inline-flex items-center gap-2 ${secondaryButton}`}><RotateCcw aria-hidden="true" className="size-4" />直前の手を取り消す</button>
-                {game.status !== "finished" && <button type="button" disabled={!canObject} onClick={openObjection} className={`inline-flex items-center gap-2 ${secondaryButton}`}><MessageCircleWarning aria-hidden="true" className="size-4" />物言い</button>}
+                {game.status !== "finished" && <button type="button" disabled={!canObject} onClick={openObjection} className={`inline-flex items-center gap-2 ${secondaryButton}`}><MessageCircleWarning aria-hidden="true" className="size-4" />直前の手に異議</button>}
                 {game.status !== "finished" && <button type="button" onClick={resign} className={`inline-flex items-center gap-2 ${secondaryButton} text-red-700 dark:text-red-400`}><Flag aria-hidden="true" className="size-4" />投了</button>}
               </div>
             </section>
@@ -311,6 +352,37 @@ export default function WordGamesPage() {
           </aside>
         </div>
       )}
+      {historyOpen && (
+        <dialog
+          ref={historyDialog}
+          aria-labelledby="history-title"
+          onCancel={(event) => { event.preventDefault(); setHistoryOpen(false); }}
+          className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-neutral-200 bg-white p-6 text-neutral-900 shadow-xl backdrop:bg-black/60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+        >
+          <h2 id="history-title" className="text-xl font-bold">過去のお題</h2>
+          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">選ぶと入力欄に反映されます。選んだ後も編集できます。</p>
+          {topicHistory.length > 0 ? (
+            <ul className="mt-5 max-h-80 space-y-2 overflow-y-auto">
+              {topicHistory.map((savedTopic) => (
+                <li key={savedTopic}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateTopic(savedTopic);
+                      setHistoryOpen(false);
+                      window.requestAnimationFrame(() => topicInput.current?.focus());
+                    }}
+                    className="w-full rounded-lg border border-neutral-200 px-4 py-3 text-left text-sm font-medium break-words hover:border-blue-400 hover:bg-blue-50 dark:border-neutral-700 dark:hover:bg-blue-950"
+                  >
+                    {savedTopic}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-5 rounded-lg bg-neutral-100 p-4 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">保存済みのお題はまだありません。</p>}
+          <button type="button" onClick={() => setHistoryOpen(false)} className="mt-5 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800">閉じる</button>
+        </dialog>
+      )}
       {objection && (
         <dialog
           ref={objectionDialog}
@@ -318,7 +390,7 @@ export default function WordGamesPage() {
           onCancel={(event) => { event.preventDefault(); resolveObjection(false); }}
           className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-neutral-200 bg-white p-6 text-neutral-900 shadow-xl backdrop:bg-black/60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
         >
-          <h2 id="objection-title" className="text-xl font-bold">物言い</h2>
+          <h2 id="objection-title" className="text-xl font-bold">直前の手に異議</h2>
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">制限時間を止めています。直前の回答を確認してください。</p>
           <div className="mt-5 rounded-xl bg-neutral-100 p-4 dark:bg-neutral-800">
             <p className="text-xs text-neutral-500">{objection.playerName}の直前の手</p>
