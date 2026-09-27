@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
+import { createPosterId, posterIdCookie, readPosterId } from "@/app/chao-chat/poster-id";
 import { validatePost } from "@/app/chao-chat/validation";
 
 export const runtime = "nodejs";
@@ -29,15 +30,16 @@ export async function GET(request: Request) {
   try {
     const sql = neon(url);
     const rows = cursor
-      ? await sql`SELECT id::text AS id, author, body, created_at AS "createdAt"
+      ? await sql`SELECT id::text AS id, author, poster_id AS "posterId", body, created_at AS "createdAt"
           FROM chao_chat_posts WHERE id < ${cursor}::bigint
           ORDER BY id DESC LIMIT ${PAGE_SIZE + 1}`
-      : await sql`SELECT id::text AS id, author, body, created_at AS "createdAt"
+      : await sql`SELECT id::text AS id, author, poster_id AS "posterId", body, created_at AS "createdAt"
           FROM chao_chat_posts ORDER BY id DESC LIMIT ${PAGE_SIZE + 1}`;
 
     const posts = rows.slice(0, PAGE_SIZE).map((row) => ({
       id: String(row.id),
       author: String(row.author),
+      posterId: String(row.posterId),
       body: String(row.body),
       createdAt: new Date(String(row.createdAt)).toISOString(),
     }));
@@ -68,6 +70,9 @@ export async function POST(request: Request) {
   const post = validatePost(payload);
   if (!post.ok) return Response.json({ error: post.error }, { status: 400 });
 
+  const savedPosterId = readPosterId(request.headers.get("cookie"));
+  const posterId = savedPosterId ?? createPosterId();
+
   const ip = request.headers.get("x-vercel-forwarded-for")
     ?? request.headers.get("x-forwarded-for")
     ?? "local";
@@ -84,8 +89,8 @@ export async function POST(request: Request) {
           WHERE chao_chat_rate_limits.last_posted_at <= now() - interval '30 seconds'
         RETURNING identity_hash
       )
-      INSERT INTO chao_chat_posts (author, body)
-      SELECT ${post.author}, ${post.body} FROM permit
+      INSERT INTO chao_chat_posts (author, poster_id, body)
+      SELECT ${post.author}, ${posterId}, ${post.body} FROM permit
       RETURNING id::text AS id
     `;
 
@@ -95,7 +100,10 @@ export async function POST(request: Request) {
         { status: 429, headers: { "Retry-After": "30" } },
       );
     }
-    return Response.json({ id: String(rows[0].id) }, { status: 201 });
+    return Response.json(
+      { id: String(rows[0].id) },
+      { status: 201, headers: savedPosterId ? undefined : { "Set-Cookie": posterIdCookie(posterId, process.env.NODE_ENV === "production") } },
+    );
   } catch (error) {
     console.error("Failed to save chao chat post", error);
     return Response.json({ error: "投稿を保存できませんでした。時間をおいて再試行してください。" }, { status: 500 });

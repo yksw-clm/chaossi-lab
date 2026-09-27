@@ -25,6 +25,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 3. Vercel の環境変数にも接続文字列が追加されたことを確認して再デプロイします。Neon 連携で自動設定されない場合は、サーバー側の環境変数として登録してください。接続文字列は Git に追加しないでください。
 
 DB 未接続の間、投稿画面には設定が必要である旨が表示されます。投稿は1ページ20件で、同じ接続元からの連続投稿は30秒間制限されます。
+投稿者IDは初回投稿時に発行し、同じブラウザのCookieに1年間保存します。Cookieを消すと新しいIDになります。既存の投稿にもIDを付けるため、機能更新後に `bun run db:setup:chao-chat` を再実行してください。
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

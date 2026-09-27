@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { LoaderCircle, RefreshCw, Send } from "lucide-react";
 import { MAX_AUTHOR_LENGTH, MAX_BODY_LENGTH } from "./validation";
 
-type Post = { id: string; author: string; body: string; createdAt: string };
+type Post = { id: string; author: string; posterId: string; body: string; createdAt: string };
 type PostPage = { posts: Post[]; nextCursor: string | null };
 
 const endpoint = "/api/chao-chat/posts";
@@ -86,7 +86,8 @@ export function Board() {
         <h2 className="text-lg font-semibold">新しく投稿する</h2>
         <div>
           <label htmlFor="chat-author" className="mb-2 block text-sm font-semibold">お名前 <span className="font-normal text-neutral-500">（任意）</span></label>
-          <input id="chat-author" value={author} onChange={(event) => setAuthor(event.target.value)} maxLength={MAX_AUTHOR_LENGTH} placeholder="空欄なら名無しさん" className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-neutral-700" />
+          <input id="chat-author" value={author} onChange={(event) => setAuthor(event.target.value)} maxLength={MAX_AUTHOR_LENGTH} placeholder="空欄なら名無しさん" aria-describedby="chat-author-limit" className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-neutral-700" />
+          <p id="chat-author-limit" className="mt-1 text-right text-xs text-neutral-500">{author.length} / {MAX_AUTHOR_LENGTH}文字</p>
         </div>
         <div>
           <label htmlFor="chat-body" className="mb-2 block text-sm font-semibold">本文</label>
@@ -110,8 +111,11 @@ export function Board() {
           <ol className="mt-5 space-y-4" aria-live="polite">
             {posts.map((post) => (
               <li key={post.id} className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <span className="font-semibold break-words">{post.author}</span>
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                  <div className="min-w-0">
+                    <span className="font-semibold break-words">{post.author}</span>
+                    <p className="mt-0.5 font-mono text-xs text-neutral-500">ID: {post.posterId}</p>
+                  </div>
                   <time dateTime={post.createdAt} className="text-xs text-neutral-500">{new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(post.createdAt))}</time>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7">{post.body}</p>
