@@ -247,7 +247,7 @@ export default function WordGamesPage() {
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl bg-blue-50 p-5 dark:bg-blue-950/40">
-                  <p className="text-sm text-blue-800 dark:text-blue-300">{game.status === "finished" ? "勝者" : "現在の手番"}</p>
+                  <p className="text-sm text-blue-800 dark:text-blue-300">{game.status === "finished" ? "優勝" : "現在の手番"}</p>
                   <p className="mt-2 text-2xl font-bold">{game.status === "finished" && <Trophy aria-hidden="true" className="mr-2 inline size-6 text-amber-500" />}{activePlayer?.name ?? "—"}</p>
                 </div>
                 <div className="rounded-xl bg-neutral-100 p-5 dark:bg-neutral-800">
@@ -301,7 +301,7 @@ export default function WordGamesPage() {
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Users aria-hidden="true" className="size-5" />参加者一覧</h2>
             <ol className="mt-4 space-y-2">{game.players.map((player, index) => <li key={player.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm ${player.id === game.currentPlayerId && game.status !== "finished" ? "bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-200" : "bg-neutral-50 dark:bg-neutral-800"}`}>
               <span className={player.eliminated ? "text-neutral-400 line-through" : "font-medium"}>{index + 1}. {player.name}</span>
-              <span className={`shrink-0 text-xs ${player.eliminated ? "text-red-600 dark:text-red-400" : "text-neutral-500"}`}>{player.eliminated ? "脱落" : player.id === game.currentPlayerId && game.status !== "finished" ? "手番" : "参加中"}</span>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${player.rank === 1 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" : player.rank !== null ? "bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200" : player.id === game.currentPlayerId ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" : "bg-white text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400"}`}>{player.rank === 1 ? "優勝" : player.rank !== null ? `${player.rank}位` : player.id === game.currentPlayerId ? "手番" : "参加中"}</span>
             </li>)}</ol>
           </aside>
         </div>

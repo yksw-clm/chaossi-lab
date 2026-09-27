@@ -68,6 +68,7 @@ describe("timer and recovery", () => {
     expect(first.status).toBe("finished");
     expect(first.currentPlayerId).toBe(1);
     expect(first.players[0].eliminated).toBe(true);
+    expect(first.players.map((player) => player.rank)).toEqual([2, 1]);
     expect(first.moves).toEqual([{ type: "timeout", playerId: 0 }]);
     expect(acceptAnswer(first, "りんご", 32000)).toBe(first);
   });
@@ -89,6 +90,7 @@ describe("timer and recovery", () => {
     const timedOut = expireTurn(game("shiritori", ["あか", "あお"]), 31000);
     const undone = undoLast(timedOut);
     expect(undone.players[0].eliminated).toBe(false);
+    expect(undone.players.map((player) => player.rank)).toEqual([null, null]);
     expect(undone.currentPlayerId).toBe(0);
     expect(undone.remainingMs).toBe(30000);
     expect(undone.status).toBe("paused");
@@ -110,6 +112,7 @@ describe("timer and recovery", () => {
     expect(restored?.remainingMs).toBe(20000);
     expect(restored?.currentPlayerId).toBe(1);
     expect(restored?.moves).toHaveLength(1);
+    expect(restored?.players.every((player) => player.rank === null)).toBe(true);
     expect(restoreGame("broken json")).toBeNull();
   });
 
@@ -117,6 +120,7 @@ describe("timer and recovery", () => {
     const resigned = resignCurrentPlayer(game(), 5000);
     expect(resigned.moves).toEqual([{ type: "resignation", playerId: 0 }]);
     expect(resigned.players[0].eliminated).toBe(true);
+    expect(resigned.players[0].rank).toBe(3);
     expect(resigned.currentPlayerId).toBe(1);
     const undone = undoLast(resigned);
     expect(undone.players[0].eliminated).toBe(false);
@@ -137,6 +141,7 @@ describe("timer and recovery", () => {
     const invalidated = invalidateLastAnswer(challenged, 8000, true);
     expect(invalidated.moves).toEqual([]);
     expect(invalidated.players[0].eliminated).toBe(true);
+    expect(invalidated.players[0].rank).toBe(3);
     expect(invalidated.currentPlayerId).toBe(1);
     expect(invalidated.status).toBe("playing");
     expect(invalidated.deadlineAt).toBe(38000);
@@ -148,6 +153,30 @@ describe("timer and recovery", () => {
     const invalidated = invalidateLastAnswer(pauseGame(answered, 7000), 8000, true);
     expect(invalidated.status).toBe("finished");
     expect(invalidated.currentPlayerId).toBe(1);
+    expect(invalidated.players.map((player) => player.rank)).toEqual([2, 1]);
     expect(invalidated.deadlineAt).toBeNull();
+  });
+
+  test("awards ranks from last place to champion across different elimination reasons", () => {
+    const first = expireTurn(game("shiritori", ["あか", "あお", "みどり", "きいろ"]), 31000);
+    const answered = acceptAnswer(first, "りんご", 32000);
+    const invalidated = invalidateLastAnswer(pauseGame(answered, 33000), 34000, true);
+    const finished = resignCurrentPlayer(invalidated, 35000);
+
+    expect(finished.status).toBe("finished");
+    expect(finished.players.map((player) => player.rank)).toEqual([4, 3, 2, 1]);
+    expect(undoLast(finished).players.map((player) => player.rank)).toEqual([4, 3, null, null]);
+    expect(restoreGame(serializeGame(finished, 36000))?.players.map((player) => player.rank)).toEqual([4, 3, 2, 1]);
+  });
+
+  test("restores ranks for games saved before ranking was added", () => {
+    const oldSave = JSON.parse(serializeGame(expireTurn(game(), 31000), 32000));
+    oldSave.version = 1;
+    for (const player of oldSave.game.players) delete player.rank;
+    for (const player of oldSave.game.undo.players) delete player.rank;
+
+    const restored = restoreGame(JSON.stringify(oldSave));
+    expect(restored?.players.map((player) => player.rank)).toEqual([3, null, null]);
+    expect(restored?.undo?.players.map((player) => player.rank)).toEqual([null, null, null]);
   });
 });

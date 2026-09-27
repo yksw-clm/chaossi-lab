@@ -6,6 +6,7 @@ export type Player = {
   id: number;
   name: string;
   eliminated: boolean;
+  rank: number | null;
 };
 
 export type Move =
@@ -91,7 +92,7 @@ export function createGame(settings: GameSettings, now: number, random: () => nu
     mode: settings.mode,
     topic: settings.topic,
     turnSeconds: settings.turnSeconds,
-    players: names.map((name, id) => ({ id, name, eliminated: false })),
+    players: names.map((name, id) => ({ id, name, eliminated: false, rank: null })),
     moves: [],
     currentPlayerId: 0,
     remainingMs: settings.turnSeconds * 1000,
@@ -157,11 +158,15 @@ export function invalidateLastAnswer(game: GameState, now: number, resume: boole
   const lastMove = game.moves.at(-1);
   if (game.status !== "paused" || lastMove?.type !== "answer" || game.currentPlayerId === null) return game;
 
-  const players = game.players.map((player) =>
-    player.id === lastMove.playerId ? { ...player, eliminated: true } : player,
+  const rank = game.players.filter((player) => !player.eliminated).length;
+  const eliminatedPlayers = game.players.map((player) =>
+    player.id === lastMove.playerId ? { ...player, eliminated: true, rank } : player,
   );
-  const remaining = players.filter((player) => !player.eliminated);
+  const remaining = eliminatedPlayers.filter((player) => !player.eliminated);
   const finished = remaining.length <= 1;
+  const players = finished
+    ? eliminatedPlayers.map((player) => player.eliminated ? player : { ...player, rank: 1 })
+    : eliminatedPlayers;
   const currentPlayerId = players[game.currentPlayerId].eliminated
     ? nextActivePlayer(players, game.currentPlayerId)
     : game.currentPlayerId;
@@ -179,11 +184,15 @@ export function invalidateLastAnswer(game: GameState, now: number, resume: boole
 }
 
 function eliminateCurrentPlayer(game: GameState, type: "timeout" | "resignation", now: number, playerId: number): GameState {
-  const players = game.players.map((player) =>
-    player.id === playerId ? { ...player, eliminated: true } : player,
+  const rank = game.players.filter((player) => !player.eliminated).length;
+  const eliminatedPlayers = game.players.map((player) =>
+    player.id === playerId ? { ...player, eliminated: true, rank } : player,
   );
-  const remaining = players.filter((player) => !player.eliminated);
+  const remaining = eliminatedPlayers.filter((player) => !player.eliminated);
   const finished = remaining.length <= 1;
+  const players = finished
+    ? eliminatedPlayers.map((player) => player.eliminated ? player : { ...player, rank: 1 })
+    : eliminatedPlayers;
 
   return {
     ...game,
@@ -268,8 +277,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isSnapshot(value: unknown): value is GameSnapshot & Record<string, unknown> {
   if (!isRecord(value) || !Array.isArray(value.players) || !Array.isArray(value.moves)) return false;
+  const players = value.players;
   return (
-    value.players.every((player) => isRecord(player) && Number.isInteger(player.id) && typeof player.name === "string" && typeof player.eliminated === "boolean") &&
+    players.every((player) => isRecord(player) && Number.isInteger(player.id) && typeof player.name === "string" && typeof player.eliminated === "boolean" && (player.rank === undefined || player.rank === null || (Number.isInteger(player.rank) && (player.rank as number) >= 1 && (player.rank as number) <= players.length))) &&
     value.moves.every((move) => isRecord(move) && Number.isInteger(move.playerId) && (move.type === "timeout" || move.type === "resignation" || (move.type === "answer" && typeof move.answer === "string"))) &&
     (value.currentPlayerId === null || Number.isInteger(value.currentPlayerId)) &&
     typeof value.remainingMs === "number" && Number.isFinite(value.remainingMs) && value.remainingMs >= 0 &&
@@ -277,9 +287,31 @@ function isSnapshot(value: unknown): value is GameSnapshot & Record<string, unkn
   );
 }
 
+function addMissingRanks(snapshot: GameSnapshot): GameSnapshot {
+  if (snapshot.players.every((player) => player.rank !== undefined)) return snapshot;
+
+  const eliminatedIds = new Set(snapshot.players.filter((player) => player.eliminated).map((player) => player.id));
+  const order = snapshot.moves
+    .filter((move) => (move.type === "timeout" || move.type === "resignation") && eliminatedIds.has(move.playerId))
+    .map((move) => move.playerId);
+  for (const player of snapshot.players) {
+    if (player.eliminated && !order.includes(player.id)) order.push(player.id);
+  }
+
+  return {
+    ...snapshot,
+    players: snapshot.players.map((player) => ({
+      ...player,
+      rank: player.eliminated
+        ? snapshot.players.length - order.indexOf(player.id)
+        : snapshot.status === "finished" ? 1 : null,
+    })),
+  };
+}
+
 export function serializeGame(game: GameState, now: number): string {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     game: {
       ...game,
       remainingMs: getRemainingMs(game, now),
@@ -293,7 +325,7 @@ export function restoreGame(raw: string | null): GameState | null {
   if (!raw) return null;
   try {
     const saved: unknown = JSON.parse(raw);
-    if (!isRecord(saved) || saved.version !== 1 || !isRecord(saved.game)) return null;
+    if (!isRecord(saved) || (saved.version !== 1 && saved.version !== 2) || !isRecord(saved.game)) return null;
     const game = saved.game;
     if (
       !isSnapshot(game) ||
@@ -308,7 +340,13 @@ export function restoreGame(raw: string | null): GameState | null {
       game.players.some((player: Player, index: number) => player.id !== index) ||
       (game.currentPlayerId !== null && !game.players.some((player: Player) => player.id === game.currentPlayerId))
     ) return null;
-    return { ...game, deadlineAt: null, status: game.status === "finished" ? "finished" : "paused" } as GameState;
+    const ranked = addMissingRanks(game);
+    return {
+      ...ranked,
+      undo: game.undo === null ? null : addMissingRanks(game.undo as GameSnapshot),
+      deadlineAt: null,
+      status: game.status === "finished" ? "finished" : "paused",
+    } as GameState;
   } catch {
     return null;
   }
