@@ -16,6 +16,16 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## ちゃおチャットのデータベース
+
+`/chao-chat` は複数の人で投稿を共有するため、Neon PostgreSQL を使用します。
+
+1. Vercel のプロジェクトで Storage → Marketplace から [Neon](https://vercel.com/marketplace/neon/neon) を追加し、このプロジェクトに接続します。
+2. ローカルの `.env.local` に `DATABASE_URL`（または `POSTGRES_URL`）を設定し、`bun run db:setup:chao-chat` を実行します。このコマンドで [`db/chao-chat.sql`](db/chao-chat.sql) のテーブルを作成します。Neon の SQL Editor から同じ SQL を実行しても構いません。
+3. Vercel の環境変数にも接続文字列が追加されたことを確認して再デプロイします。Neon 連携で自動設定されない場合は、サーバー側の環境変数として登録してください。接続文字列は Git に追加しないでください。
+
+DB 未接続の間、投稿画面には設定が必要である旨が表示されます。投稿は1ページ20件で、同じ接続元からの連続投稿は30秒間制限されます。
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Dices, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, Dices, MessageCircleMore, MessagesSquare } from "lucide-react";
 
 const tools = [
   {
@@ -15,6 +15,13 @@ const tools = [
     description: "候補をランダムに抽出・並び替え",
     icon: Dices,
     iconClassName: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  },
+  {
+    href: "/chao-chat",
+    title: "ちゃおチャット",
+    description: "気軽に書き込める匿名掲示板",
+    icon: MessageCircleMore,
+    iconClassName: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   },
 ];
 
