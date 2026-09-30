@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { neon } from "@neondatabase/serverless";
-import { ArrowUpRight, Dices, MessageCircleMore, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, Dices, Gamepad2, MessageCircleMore, MessagesSquare } from "lucide-react";
 import { connection } from "next/server";
 
 const tools = [
@@ -25,6 +25,13 @@ const tools = [
     description: "気軽に書き込める匿名掲示板",
     icon: MessageCircleMore,
     iconClassName: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  {
+    href: "https://cpod.chaossi-lab.workers.dev",
+    title: "体罰の定義（β）",
+    description: "あるきびとさん提案オンラインゲーム（開発中）",
+    icon: Gamepad2,
+    iconClassName: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
   },
 ];
 
@@ -71,29 +78,32 @@ export default function Page() {
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {tools.map(({ href, title, description, icon: Icon, iconClassName }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group flex min-h-52 flex-col rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-blue-500"
-          >
-            <span className={`flex size-14 items-center justify-center rounded-xl ${iconClassName}`}>
-              <Icon aria-hidden="true" className="size-7" strokeWidth={1.8} />
-            </span>
-            <div className="mt-6 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                  {description}
-                </p>
+        {tools.map(({ href, title, description, icon: Icon, iconClassName }) => {
+          const CardLink = href.startsWith("/") ? Link : "a";
+          return (
+            <CardLink
+              key={href}
+              href={href}
+              className="group flex min-h-52 flex-col rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-blue-500"
+            >
+              <span className={`flex size-14 items-center justify-center rounded-xl ${iconClassName}`}>
+                <Icon aria-hidden="true" className="size-7" strokeWidth={1.8} />
+              </span>
+              <div className="mt-6 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{title}</h3>
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                    {description}
+                  </p>
+                </div>
+                <ArrowUpRight
+                  aria-hidden="true"
+                  className="mt-1 size-5 shrink-0 text-neutral-400 transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
+                />
               </div>
-              <ArrowUpRight
-                aria-hidden="true"
-                className="mt-1 size-5 shrink-0 text-neutral-400 transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
-              />
-            </div>
-          </Link>
-        ))}
+            </CardLink>
+          );
+        })}
       </div>
       <section aria-labelledby="updates-title" className="mt-12 border-t border-neutral-200 pt-8 dark:border-neutral-800">
         <h2 id="updates-title" className="text-xl font-bold">更新履歴</h2>
