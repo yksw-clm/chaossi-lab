@@ -1,10 +1,20 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense } from "react";
 import { neon } from "@neondatabase/serverless";
-import { ArrowUpRight, Dices, Gamepad2, MessageCircleMore, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, Dices, Gamepad2, MessageCircleMore, MessagesSquare, type LucideIcon } from "lucide-react";
 import { connection } from "next/server";
 
-const tools = [
+type Tool = {
+  href: string;
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  iconClassName?: string;
+  imageSrc?: string;
+};
+
+const tools: Tool[] = [
   {
     href: "/word-games",
     title: "しりとり・山手線ゲーム",
@@ -32,6 +42,12 @@ const tools = [
     description: "あるきびとさん提案オンラインゲーム（開発中）",
     icon: Gamepad2,
     iconClassName: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  },
+  {
+    href: "https://tetraboard.net",
+    title: "Tetra Board",
+    description: "オンラインボードゲームプラットフォーム",
+    imageSrc: "/tetraboard-icon.png",
   },
 ];
 
@@ -78,7 +94,7 @@ export default function Page() {
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {tools.map(({ href, title, description, icon: Icon, iconClassName }) => {
+        {tools.map(({ href, title, description, icon: Icon, iconClassName, imageSrc }) => {
           const CardLink = href.startsWith("/") ? Link : "a";
           return (
             <CardLink
@@ -86,9 +102,13 @@ export default function Page() {
               href={href}
               className="group flex min-h-52 flex-col rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-blue-500"
             >
-              <span className={`flex size-14 items-center justify-center rounded-xl ${iconClassName}`}>
-                <Icon aria-hidden="true" className="size-7" strokeWidth={1.8} />
-              </span>
+              {imageSrc ? (
+                <Image src={imageSrc} alt="" width={56} height={56} className="size-14 rounded-xl object-contain" />
+              ) : Icon ? (
+                <span className={`flex size-14 items-center justify-center rounded-xl ${iconClassName ?? ""}`}>
+                  <Icon aria-hidden="true" className="size-7" strokeWidth={1.8} />
+                </span>
+              ) : null}
               <div className="mt-6 flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold">{title}</h3>
