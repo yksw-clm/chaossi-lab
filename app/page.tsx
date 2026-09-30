@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { neon } from "@neondatabase/serverless";
 import { ArrowUpRight, Dices, MessageCircleMore, MessagesSquare } from "lucide-react";
+import { connection } from "next/server";
 
 const tools = [
   {
@@ -24,6 +27,39 @@ const tools = [
     iconClassName: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   },
 ];
+
+async function UpdateHistory() {
+  await connection();
+  const databaseUrl = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+  if (!databaseUrl) return <p className="mt-4 text-sm text-neutral-500">更新履歴を表示できません。</p>;
+
+  let entries: { id: string; date: string; summary: string }[] | null = null;
+  try {
+    const sql = neon(databaseUrl);
+    const rows = await sql`
+      SELECT id::text AS id, published_on::text AS date, summary
+      FROM changelog_entries
+      ORDER BY published_on DESC, id DESC
+      LIMIT 8
+    `;
+    entries = rows.map((row) => ({ id: String(row.id), date: String(row.date), summary: String(row.summary) }));
+  } catch {
+    // Keep the tool list available if the database cannot be reached.
+  }
+
+  if (!entries) return <p className="mt-4 text-sm text-neutral-500">更新履歴を読み込めませんでした。</p>;
+  if (entries.length === 0) return <p className="mt-4 text-sm text-neutral-500">更新履歴はまだありません。</p>;
+  return (
+    <ul className="mt-4 divide-y divide-neutral-200 dark:divide-neutral-800">
+      {entries.map((entry) => (
+        <li key={entry.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:gap-5">
+          <time dateTime={entry.date} className="shrink-0 text-neutral-500">{entry.date.replaceAll("-", ".")}</time>
+          <span>{entry.summary}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function Page() {
   return (
@@ -59,6 +95,12 @@ export default function Page() {
           </Link>
         ))}
       </div>
+      <section aria-labelledby="updates-title" className="mt-12 border-t border-neutral-200 pt-8 dark:border-neutral-800">
+        <h2 id="updates-title" className="text-xl font-bold">更新履歴</h2>
+        <Suspense fallback={<p className="mt-4 text-sm text-neutral-500">読み込み中…</p>}>
+          <UpdateHistory />
+        </Suspense>
+      </section>
     </main>
   );
 }

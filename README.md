@@ -27,6 +27,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 DB 未接続の間、投稿画面には設定が必要である旨が表示されます。投稿は1ページ20件で、同じ接続元からの連続投稿は30秒間制限されます。
 投稿者IDは初回投稿時に発行し、同じブラウザのCookieに1年間保存します。Cookieを消すと新しいIDになります。既存の投稿にもIDを付けるため、機能更新後に `bun run db:setup:chao-chat` を再実行してください。
 
+## 更新履歴
+
+トップページの更新履歴は PostgreSQL の専用テーブルから読み込みます。`.env.local` を設定した状態で `bun run db:setup:changelog` を実行すると、[`db/changelog.sql`](db/changelog.sql) のテーブルと初期データを作成します。同じコマンドを再実行しても初期データは重複しません。今後の履歴は DB に SQL で追加します。画面からの投稿・編集機能はありません。
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
